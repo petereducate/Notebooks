@@ -1,0 +1,234 @@
+---
+title: Does quarterback talent affect their local fans' interest in the team?
+author: Peter Educate
+date: '2022-04-07'
+slug: does-quarterback-talent-affect-their-local-fans-interest-in-the-team
+categories: []
+tags: []
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(scales)
+library(waffle)
+library(lubridate)
+library(ggrepel)
+library(ggbeeswarm)
+library(ggbump)
+library(gt)
+library(cowplot)
+library(ggalt)
+library(car) #uploading all of our packages
+```
+
+Does quarterback talent solely affect their local fans' interest in the team?
+
+Did you watch the Bills vs. Chiefs Divisional Round playoff game in January? It’s ok if you didn’t, more than [51 million](https://www.sportsvideo.org/2022/01/28/ratings-roundup-chiefs-bills-instant-classic-becomes-most-watched-nfl-divisional-game-in-five-years-on-cbs/#:~:text=The%20audience%20for%20Bills%2DChiefs,viewers%20for%2049ers%2DCowboys) people might be able to clue you in. Yes you read that correctly, CBS hosted one of the biggest events in the last 5 years for a typical NFL playoff weekend. The game was a back and forth tug-of-war that left jaws on the floor as the Chiefs pulled away with a sudden death touchdown. In just the final two minutes of regulation, there were 24 points scored and 3 lead changes. 
+
+Translation: quarterback hypnosis. 
+
+The tit for tat contest was enough to even get the casual fan intrigued. However, this game had one extra element to delight its audience; the battle for quarterback supremacy. Buffalo’s Josh Allen and Kansas City’s Patrick Mahomes put on a show for the ages to prove (once again) the NFL was the real winner of the weekend. Ever since Patrick Mahomes, Josh Allen, and other young signal callers burst onto the scene, ball clubs around the league have scoured the draft and free agency for their own QBs to combat these superheroes. But does QB production actually get their city invested in the team?
+
+Let’s dive into the numbers.
+
+Sports Reference provides all sorts of statistics of every metric of a quarterback’s performance. TV ratings were obtained from the Sports Business Journal which collected data from all 32 NFL teams’ local household ratings in their respective market. When observing a quarterback’s performance and their relationship with local fan interest, we will observe the following categories: passing yards per game, passing touchdowns, rushing yards per game, and their wins. 
+
+Let’s take a close look at super bowl champion Matthew Stafford. Matthew Stafford tied a career high in touchdowns and was top 5 in passing yards per game. In a fantasy football driven league, that has to mean something right?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fullqbratings <- read_csv("data/final_qb_ratings.csv")
+
+startingqbratings <- fullqbratings %>% filter(Pos == "QB" | Pos == "qb") %>% filter (GS >= 7)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qbcompare1 <- startingqbratings %>% filter(Player == "Jameis Winston" | Player == "Matthew Stafford") #comparing two different quarterbacks
+
+
+ggplot() + 
+  geom_point(
+    data=startingqbratings, 
+    aes(x=`Pass TD`, y=`Y/G`, size=`Average Local TV Viewers (Per Million)`), 
+    color="grey", 
+    alpha=.5) + 
+  geom_point(
+    data=qbcompare1, 
+    aes(x=`Pass TD`, y=`Y/G`, size=`Average Local TV Viewers (Per Million)`), 
+    color="red") +
+  geom_vline(xintercept = 23.43333) + 
+  geom_hline(yintercept = 238.6633) +
+  geom_text_repel(
+    data=qbcompare1, 
+    aes(x=`Pass TD`, y=`Y/G`, label=Player)) +
+  labs(title="QB production isn't the `end all be all` for fans", subtitle="Pass Y/G and pass TD aren't intriguing to even the most loyal fans.", caption="Sources: sports-reference.com, sportsbusinessjournal.com  | By Peter Educate")  + theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank()) #creating our bubble chart of pass TD, pass YPG, and local TV viewers
+```
+
+Wow is this dude underappreciated. Jameis Winston scored a higher local TV audience and he was filling in for some guy named Drew Brees. There must be something that can better explain this insanity in the inconsistencies of QB play. Perhaps fans don’t want to see a pure pocket passer. The recent emergence of the “mobile” QB has taken this league by storm with incredible highlights. Let’s see if a quarterback’s rushing ability has some answer.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qbrushing <- startingqbratings %>%
+  select(Player, Team, GS, `Rushing Yards`, `Rushing Y/G`, `Average Local TV Viewers (Per Million)`) %>%
+  group_by(Player, Team, GS, `Rushing Yards`, `Rushing Y/G`, `Average Local TV Viewers (Per Million)`) %>%
+  arrange(desc(`Rushing Y/G`)) %>% 
+  ungroup() %>%
+  top_n(10, `Rushing Y/G`) %>%
+  relocate(`Rushing Y/G`, .before = `Average Local TV Viewers (Per Million)`) %>%
+  relocate(`Rushing Yards`, .before = `GS`) #creating our rushing quarterback dataframe
+
+qbrushing %>% 
+  gt() %>% 
+  tab_header(
+    title = "Does a QB's rushing ability impact its team's local ratings?",
+    subtitle = "Fans are inconsistent when it comes to their QB's running ability."
+  ) %>% tab_style(
+    style = cell_text(color = "black", weight = "bold", align = "center"),
+    locations = cells_title("title")
+  ) %>% tab_style(
+    style = cell_text(color = "black", align = "center"),
+    locations = cells_title("subtitle")
+  ) %>%
+tab_source_note(
+    source_note = md("**By:** Peter Educate  |  **Sources:** [Sports Reference](https://www.pro-football-reference.com/years/2021/)")
+  ) %>%
+  tab_source_note(
+    source_note = md("[Sports Business Journal](https://www.sportsbusinessjournal.com/Journal/Issues/2022/01/24/In-Depth/NFL-Local-Ratings.aspx)")
+  ) %>%
+    tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12)
+     )
+   ) %>%
+  opt_row_striping() %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#00338D"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = Player == "Josh Allen")
+  ) %>%
+  opt_row_striping() %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#241773"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = Player == "Lamar Jackson")) #creating a table with the data from our rushing QB dataframe
+```
+
+Despite the electricity of former MVP Lamar Jackson, the local fanbase is not as glued to the TV as one would think. Despite nearly averaging 20 more rush yards per game, Josh Allen has a higher local fan approval rating. Let’s get a clearer picture of rush yards per game and local TV rating. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot() + 
+  geom_point(data=startingqbratings, aes(x=`Rushing Y/G`, y=`Average Local TV Viewers (Per Million)`)) +
+  geom_smooth(data=startingqbratings, aes(x=`Rushing Y/G`, y=`Average Local TV Viewers (Per Million)`), method="lm") + 
+  labs(title = "Rushing quarterbacks hardly predict local TV ratings",
+       subtitle = "Fans don't really care about a QB's ability to run",
+       y="Average Local TV Viewers (Per Million)", caption="Sources: sports-reference.com, sportsbusinessjournal.com  | By Peter Educate") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank(),
+    ) #creating a scatterplot of rushing YPG and local TV audience
+```
+
+The chart reveals inconsistencies in rush yards per game explaining the local TV ratings. The dots are expected to follow the blue line but they form no discernable pattern instead. So if passing yards per game, passing touchdowns, and rushing yards per game don’t predict local TV ratings, what does winning do? Here’s the top 10 winning quarterbacks from the 2021 regular season by win percentage:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qbwins <- startingqbratings %>%
+  select(Player, Team, Wins, GS, `Average Local TV Viewers (Per Million)`) %>%
+  filter(GS >= 7) %>%
+  mutate(`Win%` = (`Wins`)/`GS`) %>%
+  group_by(Player, Team, Wins, GS, `Average Local TV Viewers (Per Million)`) %>%
+  arrange(desc(`Win%`)) %>% 
+  ungroup()%>%
+  top_n(10) %>% 
+  relocate(`Win%`, .before = `Average Local TV Viewers (Per Million)`)
+
+qbwins %>% 
+  gt() %>% 
+  tab_header(
+    title = "Does a QB's win percentage affect its team's local ratings?",
+    subtitle = "Winning may not be the cure for an uninterested fanbase."
+  ) %>% tab_style(
+    style = cell_text(color = "black", weight = "bold", align = "center"),
+    locations = cells_title("title")
+  ) %>% tab_style(
+    style = cell_text(color = "black", align = "center"),
+    locations = cells_title("subtitle")
+  ) %>%
+tab_source_note(
+    source_note = md("**By:** Peter Educate  |  **Sources:** [Sports Reference](https://www.pro-football-reference.com/years/2021/)")
+  ) %>%
+  tab_source_note(
+    source_note = md("[Sports Business Journal](https://www.sportsbusinessjournal.com/Journal/Issues/2022/01/24/In-Depth/NFL-Local-Ratings.aspx)")
+  ) %>%
+    tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12)
+     )
+   ) %>%
+  opt_row_striping() %>% 
+  opt_table_lines("none") %>% fmt_percent(
+    columns = c(`Win%`),
+    decimals = 1
+  ) %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#E31837"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = Player == "Patrick Mahomes")
+  ) %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#003594"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = Player == "Matthew Stafford")
+  )  #creating our table of the top 10 winningest quarterbacks
+```
+
+If it weren’t for his Superbowl win, I would feel doubly bad for Matthew Stafford. Even in a city as large as Los Angeles, not enough people were wanting to watch his success in his first season as a Ram. By his standards, Patrick Mahomes had a poor season and still was watched more than the superstar Rams. However, is this observation consistent throughout all QBs in the entire league?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot() + 
+  geom_point(data=startingqbratings, aes(x=`Rushing Y/G`, y=`Average Local TV Viewers (Per Million)`)) +
+  geom_smooth(data=startingqbratings, aes(x=`Rushing Y/G`, y=`Average Local TV Viewers (Per Million)`), method="lm") + 
+  labs(title = "Rushing quarterbacks hardly predict local TV ratings",
+       subtitle = "Fans don't really care about a QB's ability to run",
+       y="Average Local TV Viewers (Per Million)", caption="Sources: sports-reference.com, sportsbusinessjournal.com  | By Peter Educate") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank(),
+    ) #creating a scatterplot of rushing YPG and local TV audience
+```
+
+
+
+Finally, teams have a blueprint to get their local fans more interested in watching. However, should this be the end all be all argument for NFL owners? 
+
+The answer: Yes…and no.
+
+In this chart, winning clearly displays a positive correlation with local TV ratings which would make sense. Winning creates a foundation of a culture that fanbases love to get behind which forms a tradition. However, you cannot attribute ratings solely to the quarterback’s team winning. 
+Winning may help explain local TV ratings but there is a strong possibility that there are other variables not explained in this data. Size of the city, number of local sports teams, and data of  origin of the franchise may also explain fans’ interest. The ability, play, and success of a quarterback should not be the only factors considered when attempting to project local fan interest. 
+
+Ultimately, one thing remains true; the league remains in good hands with these talents under center.
+
