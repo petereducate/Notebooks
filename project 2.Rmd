@@ -1,0 +1,264 @@
+---
+title: What can NBA teams do to increase their fan attendance at games?
+author: R package build
+date: '2022-04-30'
+slug: what-can-nba-teams-do-to-increase-their-fan-attendance-at-games
+categories: []
+tags: []
+---
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(scales)
+library(waffle)
+library(lubridate)
+library(ggrepel)
+library(ggbeeswarm)
+library(ggbump)
+library(gt)
+library(cowplot)
+library(ggalt)
+library(car) #uploading all of our packages
+```
+
+What can NBA teams do to increase their fan attendance at games?
+
+In the last few years, a lot has happened in the world. A pandemic, the capital was raided, and Elon Musk bought Twitter. However, throughout these trying times several sports leagues have found a way to carry on and host sporting events for the world to see. As COVID-19 protocols have lessened, NBA teams have been able to allow fans back into their stadiums to replicate a somewhat normal fan experience. 
+
+Unfortunately, it hasn’t worked out very well.
+
+According to the Sports Business Journal, there has been a [4% decrease](https://www.sportsbusinessjournal.com/Daily/Closing-Bell/2022/04/13/NBA.aspx) in fan attendance since the 2018-19 season . That could be a result of a myriad of things, but perhaps the games are losing the luster they originally had. While this number isn’t too eye-opening, it does raise some questions as to why there has been a decrease in fan attendance. 
+
+So how can NBA teams get fans to come to their games?
+
+When observing attendance data from the most recent 2021-22 NBA season from Sports Business Journal, we will be looking at basic NBA metrics from NBA.com to determine what fans matter most when watching their teams live. These metrics include points per game (PTS), three point percentage (3P%), opponent points per game (OPPTS), win percentage (WIN%), and plus-minus (Plus-Minus). These metrics should give us an idea on if they value good offense, good shooting, good defense, good team, and or their level of dominance.
+
+Let’s take a look at if fans value how many points a team puts up per night.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+nba <- read_csv("data/nbaattendance.csv") #uploading our data
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+nbaexamine1 <- lm(nba$`Average Attendance` ~ nba$PTS)
+
+nbaexamine2 <- lm(nba$`Average Attendance` ~ nba$`3P%`)
+
+nbaexamine3 <- lm(nba$`Average Attendance` ~ nba$OPPTS)
+
+nbaexamine4 <- lm(nba$`Average Attendance` ~ nba$W)
+
+nbaexamine5 <- lm(nba$`Average Attendance` ~ nba$`Plus-Minus`) #discovering which NBA stats predict attendance
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+mb <- nba %>% filter(TEAM == "Milwaukee Bucks")
+pt <- nba %>% filter(TEAM == "Portland Trail Blazers")
+
+ggplot() + 
+  geom_point(data=nba, aes(x=`PTS`, y=`Average Attendance`)) +
+  geom_smooth(data=nba, aes(x=`PTS`, y=`Average Attendance`), method="lm") +
+  geom_point(data=mb, aes(x=`PTS`, y=`Average Attendance`), color="#EEE1C6") +
+  geom_point(data=pt, aes(x=`PTS`, y=`Average Attendance`), color="#E03A3E") +
+  labs(title = "High scoring NBA teams don't have a strong enough impact on fan attendance",
+       subtitle = "(Portland Trail Blazers = Red, Milwaukee Bucks = Cream)",
+       y="Average Local TV Viewers (Per Million)", caption="Sources: NBA.com, sportsbusinessjournal.com  | By Peter Educate") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank(),
+    ) #creating a scatterplot of NBA scoring and attendance
+```
+
+Despite the league leaning more favorably towards offense, fans really aren’t interested in just pure scoring. A lot of teams can put up points, it appears that fans require a little more substance if teams want them to show up to games. If fans don’t value a good offense, do they value a dominant defense? 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+nbadefense <- nba %>%
+  select(TEAM, STL, BLK, `OPPTS`,`Average Attendance`) %>%
+  group_by(TEAM, STL, BLK, `OPPTS`,`Average Attendance`) %>%
+  arrange((`OPPTS`)) %>% 
+  ungroup() %>%
+  top_n(10) %>%
+  relocate(`OPPTS`, .before = `Average Attendance`) #creating our NBA defensive dataframe
+
+nbadefense %>% 
+  gt() %>% 
+  tab_header(
+    title = "Does three point shooting have an effect on an NBA team's attendance?",
+    subtitle = "Fans cheer on teams who can drain threes proficiently"
+  ) %>% tab_style(
+    style = cell_text(color = "black", weight = "bold", align = "center"),
+    locations = cells_title("title")
+  ) %>% tab_style(
+    style = cell_text(color = "black", align = "center"),
+    locations = cells_title("subtitle")
+  ) %>%
+tab_source_note(
+    source_note = md("**By:** Peter Educate  |  **Sources:** [NBA](https://www.nba.com/stats/teams/traditional/?sort=W_PCT&dir=-1&Season=2021-22&SeasonType=Regular%20Season)")
+  ) %>%
+  tab_source_note(
+    source_note = md("[Sports Business Journal](https://www.sportsbusinessjournal.com/Daily/Closing-Bell/2022/04/13/NBA.aspx)")
+  ) %>%
+    tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12)
+     )
+   ) %>%
+  opt_row_striping() %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#007A33"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = TEAM == "Boston Celtics")
+  ) %>%
+  opt_row_striping() %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#00538C"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = TEAM == "Dallas Mavericks")) #creating our NBA defense table
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+nbacompare1 <- nba %>% filter(TEAM == "Boston Celtics" | TEAM == "Houston Rockets")
+
+nbacompare2 <- nba %>% filter(TEAM == "Boston Celtics" | TEAM == "Los Angeles Lakers") #creating comparisons between a good and bad defensive team
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot() + 
+  geom_point(
+    data=nba, 
+    aes(x=`OPPTS`, y=`Plus-Minus`, size=`Average Attendance`), 
+    color="grey", 
+    alpha=.5) + 
+  geom_point(
+    data=nbacompare1, 
+    aes(x=`OPPTS`, y=`Plus-Minus`, size=`Average Attendance`), 
+    color="red") +
+  geom_vline(xintercept = 110.61) + 
+  geom_hline(yintercept = -0.003333333) +
+  geom_text_repel(
+    data=nbacompare1, 
+    aes(x=`OPPTS`, y=`Plus-Minus`, label=TEAM)) +
+  labs(title="Fans love to root for a dominant defensive team in person", subtitle="Suffocating defenses still hold a place in fans' hearts", caption="Sources: NBA.com, sportsbusinessjournal.com  | By Peter Educate")  + theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank() #creating our bubble chart of opponent scoring, plus-minus, and attendance
+    )
+```
+
+It appears fans love to cheer on their teams that play a stifling defense. This would make sense considering that the crowd erupts when they see a chasedown block or a steal leading to a dunk. 
+
+The term “three and D” has been a popular trend amongst NBA experts who claim those are the keys to winning basketball games. When analyzing this theory, it would make sense that teams who defend well and hit a higher percentage of three point shots often have the backbone of an NBA contender. But do fans attend games to watch their teams’ three point shooting prowess as much as the rest of the NBA values it?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+nba3P <- nba %>%
+  select(TEAM, `WIN%`, `3PA`, `3P%`,`Average Attendance`) %>%
+  group_by(TEAM, `WIN%`, `3PA`, `3P%`,`Average Attendance`) %>%
+  arrange(desc(`3P%`)) %>% 
+  ungroup() %>%
+  top_n(10,`3P%`) %>%
+  relocate(`3P%`, .before = `Average Attendance`) #creating our rushing three point shooting dataframe
+
+nba3P %>% 
+  gt() %>% 
+  tab_header(
+    title = "Does three point shooting have an effect on an NBA team's attendance?",
+    subtitle = "Fans cheer on teams who can drain threes proficiently"
+  ) %>% tab_style(
+    style = cell_text(color = "black", weight = "bold", align = "center"),
+    locations = cells_title("title")
+  ) %>% tab_style(
+    style = cell_text(color = "black", align = "center"),
+    locations = cells_title("subtitle")
+  ) %>%
+tab_source_note(
+    source_note = md("**By:** Peter Educate  |  **Sources:** [NBA](https://www.nba.com/stats/teams/traditional/?sort=W_PCT&dir=-1&Season=2021-22&SeasonType=Regular%20Season)")
+  ) %>%
+  tab_source_note(
+    source_note = md("[Sports Business Journal](https://www.sportsbusinessjournal.com/Daily/Closing-Bell/2022/04/13/NBA.aspx)")
+  ) %>%
+    tab_style(
+     locations = cells_column_labels(columns = everything()),
+     style = list(
+       cell_borders(sides = "bottom", weight = px(3)),
+       cell_text(weight = "bold", size=12)
+     )
+   ) %>%
+  opt_row_striping() %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#CE1141"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = TEAM == "Chicago Bulls")
+  ) %>%
+  opt_row_striping() %>%
+    tab_style(
+    style = list(
+      cell_fill(color = "#98002E"),
+      cell_text(color = "white")
+      ),
+    locations = cells_body(
+      rows = TEAM == "Miami Heat")) #creating our three point shooting table
+```
+
+Somewhere Stephen Curry and the warriors are smiling. Two of the top 5 three point shooting teams rank in the top 5 attendance. Let’s see if this trend applies to the rest of the league’s fan attendance.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot() + 
+  geom_point(data=nba, aes(x=`3P%`, y=`Average Attendance`)) +
+  geom_smooth(data=nba, aes(x=`3P%`, y=`Average Attendance`), method="lm") +
+  labs(title = "Accuracy of three point shooting matters to attendance, not frequency",
+       subtitle = "All NBA teams shoot 3s, who makes them more often matters most",
+       y="Average Attendance", caption="Sources: NBA.com, sportsbusinessjournal.com  | By Peter Educate") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank(),
+    ) #creating our three point shooting scatterplot
+```
+
+Well, three point shooting seems to have found a serious niche in this league amongst its fans. It is important to note that no matter how many threes a team hits, fans are more likely to go see their team play if they hit a higher percentage of threes. For example, Russell Westbrook could hit five threes in a game, but it’s most likely he shot 20 to get there (i.e. 5/20 = 25%). 
+
+Finally, let’s see if winning has anything to do with NBA attendance at games. Even the New York Knicks have some loyal fanbases who will see their garbage teams so it’s not a given that winning teams have good fan attendance.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot() + 
+  geom_point(data=nba, aes(x=`WIN%`, y=`Average Attendance`)) +
+  geom_smooth(data=nba, aes(x=`WIN%`, y=`Average Attendance`), method="lm") +
+  labs(title = "Winning NBA teams are more likely to attract fans to come to their games",
+       subtitle = "A winning season is crucial to fans interested in paying to see their team live",
+       y="Average Attendance", caption="Sources: NBA.com, sportsbusinessjournal.com  | By Peter Educate") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 16, face = "bold"),
+    axis.title = element_text(size = 8), 
+    plot.subtitle = element_text(size=10), 
+    panel.grid.minor = element_blank(),
+    ) #creating our winning teams scatterplot 
+```
+
+Well, I stand corrected. Winning NBA basketball teams are more likely to draw their fans to come see their teams live. Perhaps the buzz around a team’s success can get the water cooler talk flowing quickly. NBA teams should look to build a winning culture in order to get season ticket renewals from their fans to maximize profit. 
+
+It appears that while fan attendance at home games has decreased in the last few years, there are some things that could get fans interested again. Teams should focus on creating teams based on defense first, not offense. It’s easy to get your players to score consistently, it’s hard to get them to defend consistently. They should also concentrate on three point shooting as it is still a luxury to have the elite of elite shooters on a team. Fans love to cheer on teams who hit more of the threes than they miss.
+
+Ultimately, fans will come to the games if their team has any regular season success. Winning teams get their fans excited to support them in person. It would be much more difficult to get your fans to come watch a bad team because at the end of the day…who wants to watch a team who doesn’t defend, can’t shoot, and can’t win?
+
